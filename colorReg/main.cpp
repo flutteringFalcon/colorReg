@@ -5,7 +5,7 @@
 using namespace std;
 using namespace cv;
 
-const int PI = 3.1415926;
+const double PI = 3.1415926;
 
 int main()
 {
@@ -61,7 +61,7 @@ int main()
 	}
 
 	int minLeftSub, tempLeft;
-	for (int i = 0; i < 3; ++i) {            //四个标记区域按照X方向坐标从左向右排序（选择排序）
+	for (int i = 0; i < 3; ++i) {            // 四个标记区域按照X方向坐标从左向右排序（选择排序）
 		minLeftSub = i;
 		for (int j = i + 1; j < 4; ++j) {
 			if (stats(ptNum[j], CC_STAT_LEFT) < stats(ptNum[minLeftSub], CC_STAT_LEFT)) {
@@ -75,10 +75,11 @@ int main()
 		}
 	}
 
-	const int ADDWIDTH = 5;                                      //区域边界展宽
-	double squareEucDisMaxTemp, squareEucDisMax;                 //平方欧式距离最大值
-	double ptScale[4];                                           //存放四个指针刻度
-	Point2i ptFarthest;                                          //ROI内部距离中心最远点
+	const int ADDWIDTH = 5;                                      // 区域边界展宽
+	double squareEucDisMaxTemp, squareEucDisMax;                 // 平方欧式距离最大值
+	double ptScale[4];                                           // 存放四个指针刻度
+	Point2i ptFarthest;                                          // ROI内部距离中心最远点
+	double angle;
 
 	for (int i = 0; i < 4; ++i) {
 		squareEucDisMax = 0;
@@ -86,10 +87,6 @@ int main()
 					   stats(ptNum[i], CC_STAT_WIDTH) + ADDWIDTH * 2, stats(ptNum[i], CC_STAT_HEIGHT) + ADDWIDTH * 2);
 		Mat imROIGrayRedMarkEdge(imGrayRedMarkEdge, ROI);
 
-		namedWindow("imROI");
-		imshow("imROI", imROIGrayRedMarkEdge);
-		waitKey(1);
-		
 		int ROILabelNum;
 		Mat imROILabel(imROIGrayRedMarkEdge.size(), CV_16UC1, Scalar::all(0));
 		ROILabelNum = connectedComponents(imROIGrayRedMarkEdge, imROILabel, 8, CV_16U);          // ROI标记区域数目包括背景区域
@@ -103,7 +100,7 @@ int main()
 					for (int n = 0; n < imROILabel.cols; ++n) {
 						if (j == imROILabel.at<int>(m, n)) {
 							squareEucDisMaxTemp = pow(abs(m - ROICentroids(j, 0)), 2)\
-												  + pow(abs(n - ROICentroids(j, 0)), 2);
+												  + pow(abs(n - ROICentroids(j, 1)), 2);
 							if (squareEucDisMaxTemp > squareEucDisMax) {
 								squareEucDisMax = squareEucDisMaxTemp;
 								ptFarthest = Point2i(n, m);
@@ -112,13 +109,14 @@ int main()
 					}
 				}
 
-				double angle = atan2(ptFarthest.y - ROICentroids(j, 0),\
-									 ptFarthest.x - ROICentroids(j, 0));
+				angle = atan2(ptFarthest.y - ROICentroids(j, 0),\
+							  ptFarthest.x - ROICentroids(j, 1));
 				ptScale[i] = -1 * (angle - PI / 2) / (PI / 5);
 				ptScale[i] < 0 ? ptScale[i] += 10 : ptScale[i] += 0;
 			}
 		}
 
+		cout << ptFarthest << endl;
 	}
 
 
@@ -130,16 +128,14 @@ int main()
 	result = K0 * ptScale[0] + K1 * ptScale[1] + K2 * ptScale[2] + K3 * ptScale[3];
 	cout << "The result is: " << result << endl;
 
- 	namedWindow("The original image", WINDOW_AUTOSIZE);
- 	imshow("The original image", imOrin);
- 	namedWindow("The red mark image", WINDOW_AUTOSIZE);
- 	imshow("The red mark image", imRedMark);
- 	namedWindow("The edge image of red mark", WINDOW_AUTOSIZE);
- 	imshow("The edge image of red mark", imGrayRedMarkEdge);
- 	namedWindow("The label image", WINDOW_AUTOSIZE);
- 	imshow("The label image", imLabel);
- 
- 	waitKey();
+	//namedWindow("The original image", WINDOW_AUTOSIZE);
+	//imshow("The original image", imOrin);
+	//namedWindow("The red mark image", WINDOW_AUTOSIZE);
+	//imshow("The red mark image", imRedMark);
+	//namedWindow("The edge image of red mark", WINDOW_AUTOSIZE);
+	//imshow("The edge image of red mark", imGrayRedMarkEdge);
+
+	//waitKey();
  
  	return 0;
  }
