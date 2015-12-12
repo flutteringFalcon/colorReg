@@ -94,7 +94,7 @@ int main()
 		Mat_<int> ROIStats(ROILabelNum, 5);                                                      // 检测ROI标记区域相关信息
 		Mat_<double> ROICentroids(ROILabelNum, 2);
 		connectedComponentsWithStats(imROIGrayRedMarkEdge, imROILabel, ROIStats, ROICentroids, 8, CV_32S);
-		for (int j = 0; j < ROILabelNum; ++j) {
+		for (int j = 1; j < ROILabelNum; ++j) {
 			if (ROIStats(j, CC_STAT_AREA) > stats(ptNum[i], CC_STAT_AREA) - 1) {                 // 若是表针则进行后续计算
 				for (int m = 0; m < imROILabel.rows; ++m) {
 					for (int n = 0; n < imROILabel.cols; ++n) {
