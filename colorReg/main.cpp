@@ -16,8 +16,8 @@ int main()
 	const int THG = 60;               // 绿色阈值
 	const int THB = 60;               // 蓝色阈值
 
-	Mat imRedMark(imOrinSize, CV_8UC3, Scalar::all(0));         // 存放红色表针图像
-	for (int i = 0; i < imOrinSize.height; ++i) {               // 确定红色表针位置
+	Mat imRedMark(imOrinSize, CV_8UC3, Scalar::all(0));          // 存放红色表针图像
+	for (int i = 0; i < imOrinSize.height; ++i) {                // 确定红色表针位置
 		for (int j = 0; j < imOrinSize.width; ++j) {
 			((imOrin.at<Vec3b>(i, j)[2] > THR) \
 				&& (imOrin.at<Vec3b>(i, j)[1] < THG) \
@@ -31,7 +31,7 @@ int main()
 	Mat imGrayRedMark(imOrinSize, CV_8UC1, Scalar::all(0));
 	Mat imGrayRedMarkEdge(imOrinSize, CV_8UC1, Scalar::all(0));
 	cvtColor(imRedMark, imGrayRedMark, COLOR_BGR2GRAY);
-	Canny(imGrayRedMark, imGrayRedMarkEdge, 0.4, 0.8);                        // 边缘检测
+	Canny(imGrayRedMark, imGrayRedMarkEdge, 0.1, 0.9);                        // 边缘检测
 
 	int labelNum;
 	Mat imLabel(imOrinSize, CV_16UC1, Scalar::all(0));
@@ -61,7 +61,7 @@ int main()
 	}
 
 	int minLeftSub, tempLeft;
-	for (int i = 0; i < 3; ++i) {            // 四个标记区域按照X方向坐标从左向右排序（选择排序）
+	for (int i = 0; i < 3; ++i) {                                // 四个标记区域按照X方向坐标从左向右排序（选择排序）
 		minLeftSub = i;
 		for (int j = i + 1; j < 4; ++j) {
 			if (stats(ptNum[j], CC_STAT_LEFT) < stats(ptNum[minLeftSub], CC_STAT_LEFT)) {
@@ -75,48 +75,43 @@ int main()
 		}
 	}
 
-	const int ADDWIDTH = 5;                                      // 区域边界展宽
+	const int ADDWIDTH = 0;                                      // 区域边界展宽
 	double squareEucDisMaxTemp, squareEucDisMax;                 // 平方欧式距离最大值
 	double ptScale[4];                                           // 存放四个指针刻度
-	Point2i ptFarthest;                                          // ROI内部距离中心最远点
+	Point2i ptFarthest, ROICenter;                               // ROI内部距离中心最远点
 	double angle;
 
 	for (int i = 0; i < 4; ++i) {
 		squareEucDisMax = 0;
 		Rect_<int> ROI(stats(ptNum[i], CC_STAT_LEFT) - ADDWIDTH, stats(ptNum[i], CC_STAT_TOP) - ADDWIDTH,\
 					   stats(ptNum[i], CC_STAT_WIDTH) + ADDWIDTH * 2, stats(ptNum[i], CC_STAT_HEIGHT) + ADDWIDTH * 2);
-		Mat imROIGrayRedMarkEdge(imGrayRedMarkEdge, ROI);
+		Mat imROILabel(imLabel, ROI);
 
-		int ROILabelNum;
-		Mat imROILabel(imROIGrayRedMarkEdge.size(), CV_16UC1, Scalar::all(0));
-		ROILabelNum = connectedComponents(imROIGrayRedMarkEdge, imROILabel, 8, CV_16U);          // ROI标记区域数目包括背景区域
+		ROICenter.x = centroids(ptNum[i], 0) - stats(ptNum[i], CC_STAT_LEFT) + ADDWIDTH;      // 计算ROI区域中心
+		ROICenter.y = centroids(ptNum[i], 1) - stats(ptNum[i], CC_STAT_TOP) + ADDWIDTH;
 
-		Mat_<int> ROIStats(ROILabelNum, 5);                                                      // 检测ROI标记区域相关信息
-		Mat_<double> ROICentroids(ROILabelNum, 2);
-		connectedComponentsWithStats(imROIGrayRedMarkEdge, imROILabel, ROIStats, ROICentroids, 8, CV_32S);
-		for (int j = 1; j < ROILabelNum; ++j) {
-			if (ROIStats(j, CC_STAT_AREA) > stats(ptNum[i], CC_STAT_AREA) - 1) {                 // 若是表针则进行后续计算
-				for (int m = 0; m < imROILabel.rows; ++m) {
-					for (int n = 0; n < imROILabel.cols; ++n) {
-						if (j == imROILabel.at<int>(m, n)) {
-							squareEucDisMaxTemp = pow(abs(m - ROICentroids(j, 0)), 2)\
-												  + pow(abs(n - ROICentroids(j, 1)), 2);
-							if (squareEucDisMaxTemp > squareEucDisMax) {
-								squareEucDisMax = squareEucDisMaxTemp;
-								ptFarthest = Point2i(n, m);
-							}
-						}
+		for (int m = 0; m < imROILabel.rows; ++m) {                                           // 计算表针针尖位置
+			for (int n = 0; n < imROILabel.cols; ++n) {
+
+				if (ptNum[i] == imROILabel.at<int>(m, n)) {
+					squareEucDisMaxTemp = pow(abs(n - ROICenter.x), 2) + pow(abs(m - ROICenter.y), 2);
+
+					if (squareEucDisMaxTemp > squareEucDisMax) {
+						squareEucDisMax = squareEucDisMaxTemp;
+						ptFarthest.x = n;
+						ptFarthest.y = m;
 					}
+
 				}
 
-				angle = atan2(ptFarthest.y - ROICentroids(j, 0),\
-							  ptFarthest.x - ROICentroids(j, 1));
-				ptScale[i] = -1 * (angle - PI / 2) / (PI / 5);
-				ptScale[i] < 0 ? ptScale[i] += 10 : ptScale[i] += 0;
 			}
 		}
 
-		cout << ptFarthest << endl;
+		angle = atan2(ptFarthest.y - ROICenter.y, ptFarthest.x - ROICenter.x);                // 计算表针指向数值
+		(angle - PI / 2) < 0 ? ptScale[i] = -1 * (angle - PI / 2) / (PI / 5) : ptScale[i] = 10 - (angle - PI / 2) / (PI / 5);
+
+		cout << "ptFarthest[" << i << "] = " << ptFarthest << endl;
+		cout << "ptScale[" << i << "] = " << ptScale[i] << endl;
 	}
 
 
