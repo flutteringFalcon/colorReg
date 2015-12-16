@@ -1,4 +1,5 @@
 #include<iostream>
+#include<string>
 #include<cmath>
 #include<opencv.hpp>
 
@@ -7,7 +8,7 @@ using namespace cv;
 
 const double PI = 3.1415926;
 
-int main()
+int main(int argc, char *argv[])
 {
 	Mat imOrin = imread("..\\image\\clock.jpg");
 	Size imOrinSize = imOrin.size();
@@ -31,7 +32,7 @@ int main()
 	Mat imGrayRedMark(imOrinSize, CV_8UC1, Scalar::all(0));
 	Mat imGrayRedMarkEdge(imOrinSize, CV_8UC1, Scalar::all(0));
 	cvtColor(imRedMark, imGrayRedMark, COLOR_BGR2GRAY);
-	Canny(imGrayRedMark, imGrayRedMarkEdge, 0.1, 0.9);                        // 边缘检测
+	Canny(imGrayRedMark, imGrayRedMarkEdge, 0.2, 0.8, 5);                     // 边缘检测
 
 	int labelNum;
 	Mat imLabel(imOrinSize, CV_16UC1, Scalar::all(0));
@@ -39,7 +40,7 @@ int main()
 
 	Mat_<int> stats(labelNum, 5);                                             // 检测标记区域相关信息
 	Mat_<double> centroids(labelNum, 2);
-	connectedComponentsWithStats(imGrayRedMarkEdge, imLabel, stats, centroids, 8, CV_32S);
+	connectedComponentsWithStats(imGrayRedMarkEdge, imLabel, stats, centroids, 8, CV_16U);
 
 	stats.row(0) = stats.row(0) * 0;                                          // 标记0代表背景区域，清零
 	int ptNum[4] = {0, 0, 0, 0};                                              // 存放最大四个标记区域下标
@@ -75,11 +76,11 @@ int main()
 		}
 	}
 
-	const int ADDWIDTH = 0;                                      // 区域边界展宽
+	const int ADDWIDTH = 5;                                      // 区域边界展宽
 	double squareEucDisMaxTemp, squareEucDisMax;                 // 平方欧式距离最大值
 	double ptScale[4];                                           // 存放四个指针刻度
-	Point2i ptFarthest, ROICenter;                               // ROI内部距离中心最远点
-	double angle;
+	Point2d ptFarthest, ROICenter;                               // ROI内部距离中心最远点
+	double angle;                                                // 表针角度
 
 	for (int i = 0; i < 4; ++i) {
 		squareEucDisMax = 0;
@@ -93,7 +94,8 @@ int main()
 		for (int m = 0; m < imROILabel.rows; ++m) {                                           // 计算表针针尖位置
 			for (int n = 0; n < imROILabel.cols; ++n) {
 
-				if (ptNum[i] == imROILabel.at<int>(m, n)) {
+				if (ptNum[i] == imROILabel.at<short>(m, n)) {
+					imROILabel.at<short>(m, n) = 32767;                                       // 方便观察ROI区域
 					squareEucDisMaxTemp = pow(abs(n - ROICenter.x), 2) + pow(abs(m - ROICenter.y), 2);
 
 					if (squareEucDisMaxTemp > squareEucDisMax) {
@@ -107,11 +109,15 @@ int main()
 			}
 		}
 
-		angle = atan2(ptFarthest.y - ROICenter.y, ptFarthest.x - ROICenter.x);                // 计算表针指向数值
+		angle = atan2(-(ptFarthest.y - ROICenter.y), ptFarthest.x - ROICenter.x);             // 计算表针指向数值
 		(angle - PI / 2) < 0 ? ptScale[i] = -1 * (angle - PI / 2) / (PI / 5) : ptScale[i] = 10 - (angle - PI / 2) / (PI / 5);
 
-		cout << "ptFarthest[" << i << "] = " << ptFarthest << endl;
-		cout << "ptScale[" << i << "] = " << ptScale[i] << endl;
+		imROILabel.at<short>(short(ROICenter.y), short(ROICenter.x)) = 32767;                 // 显示中心点
+
+		string ROIName = "..\\image\\";                                                       // 保存ROI区域图像
+		char s[2];
+		_itoa_s(i, s, 10);ROIName.push_back(s[0]);ROIName.append(".bmp");
+		imwrite(ROIName, imROILabel);
 	}
 
 
@@ -119,18 +125,13 @@ int main()
 	const double K1 = 0.001;
 	const double K2 = 0.01;
 	const double K3 = 0.1;
-	double result;
-	result = K0 * ptScale[0] + K1 * ptScale[1] + K2 * ptScale[2] + K3 * ptScale[3];
-	cout << "The result is: " << result << endl;
+	double result = K0 * ptScale[0] + K1 * floor(ptScale[1]) + K2 * floor(ptScale[2]) + K3 * floor(ptScale[3]);
 
-	//namedWindow("The original image", WINDOW_AUTOSIZE);
-	//imshow("The original image", imOrin);
-	//namedWindow("The red mark image", WINDOW_AUTOSIZE);
-	//imshow("The red mark image", imRedMark);
-	//namedWindow("The edge image of red mark", WINDOW_AUTOSIZE);
-	//imshow("The edge image of red mark", imGrayRedMarkEdge);
-
-	//waitKey();
+	cout << "The result is: " \
+		 << "0.1*" << floor(ptScale[3]) << " + " \
+		 << "0.01*" << floor(ptScale[2]) << " + " \
+		 << "0.001*" << floor(ptScale[1]) << " + " \
+		 << "0.0001*" << ptScale[0] << "= " << result << endl;
  
  	return 0;
  }
