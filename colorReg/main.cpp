@@ -127,10 +127,10 @@ int main(int argc, char *argv[])
 	const double K3 = 0.1;
 	double result = K0 * ptScale[0] + K1 * floor(ptScale[1]) + K2 * floor(ptScale[2]) + K3 * floor(ptScale[3]);
 
-	cout << "The result is: " \
-		 << "0.1*" << floor(ptScale[3]) << " + " \
-		 << "0.01*" << floor(ptScale[2]) << " + " \
-		 << "0.001*" << floor(ptScale[1]) << " + " \
+	cout << "The result is: "\
+		 << "0.1*" << floor(ptScale[3]) << " + "\
+		 << "0.01*" << floor(ptScale[2]) << " + "\
+		 << "0.001*" << floor(ptScale[1]) << " + "\
 		 << "0.0001*" << ptScale[0] << "= " << result << endl;
  
  	return 0;
